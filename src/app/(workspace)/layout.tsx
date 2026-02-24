@@ -6,13 +6,29 @@ import { UserButton } from "@clerk/nextjs";
 import { MessageSquare, UsersRound, Pin, FileText, BriefcaseBusiness, Menu, X, Info } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { ChatInterface } from "@/components/ChatInterface";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
+import { QUOTES } from "@/constants/quotes";
 
 export default function WorkspaceLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { isChatOpen, setIsChatOpen, hasCompletedDailyCard, setHasCompletedDailyCard, hasReports, setHasReports } = useAppStore();
   const [graphContext, setGraphContext] = useState<any>(null);
+  const [dailyQuote, setDailyQuote] = useState("");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  // Daily Quote Easter Egg Logic (Client-only to avoid hydration mismatch)
+  useEffect(() => {
+    const today = new Date();
+    const dateString = today.getFullYear() + "-" + (today.getMonth() + 1) + "-" + today.getDate();
+    // Simple deterministic hash of the date string
+    let hash = 0;
+    for (let i = 0; i < dateString.length; i++) {
+      hash = ((hash << 5) - hash) + dateString.charCodeAt(i);
+      hash |= 0; 
+    }
+    const index = Math.abs(hash) % QUOTES.length;
+    setDailyQuote(QUOTES[index]);
+  }, []);
 
   // Fetch daily card status globally on mount
   useEffect(() => {
@@ -77,9 +93,21 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
     <div className="flex flex-col h-screen w-full bg-[#FFFEFC] text-stone-900 overflow-hidden">
       <header className="px-4 md:px-6 py-3 bg-white border-b border-stone-200 flex justify-between items-center z-30 shadow-sm shrink-0 relative">
         <div className="flex items-center gap-4 md:gap-12">
-          <Link href="/relationships" className="text-xl font-bold text-stone-800 flex items-center gap-2">
-            🧠 Bowen
-          </Link>
+          <div className="flex items-center gap-2 text-xl font-bold text-stone-800">
+            <div className="relative group flex items-center">
+              <span className="cursor-help">🧠</span>
+              {/* Custom Tooltip - Only shows on hover of the brain */}
+              {dailyQuote && (
+                <div className="absolute left-0 top-full mt-2 w-64 p-3 bg-stone-900 text-white text-xs font-medium rounded-xl shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 leading-relaxed border border-stone-800">
+                  <div className="absolute -top-1 left-3 w-2 h-2 bg-stone-900 rotate-45" />
+                  {dailyQuote}
+                </div>
+              )}
+            </div>
+            <Link href="/relationships" className="hover:text-stone-600 transition-colors">
+              Bowen
+            </Link>
+          </div>
 
           <nav className="hidden md:flex items-center gap-2 bg-stone-100 p-1 rounded-xl">
             {navLinks.map((link, index) => {

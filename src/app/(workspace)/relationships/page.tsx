@@ -219,6 +219,7 @@ function Flow() {
         }}
         onNodeClick={(_, node) => { setSelectedNode(node); setSelectedEdge(null); }}
         onEdgeClick={(_, edge) => { setSelectedEdge(edge); setEditingId(edge.id); setModalType('connection'); setIsModalOpen(true); }}
+        onPaneClick={() => { setSelectedNode(null); setSelectedEdge(null); }}
         connectionLineType={ConnectionLineType.Straight}
         connectionLineStyle={{ stroke: '#a8a29e', strokeWidth: 3, zIndex: -1 }}
         connectionMode={ConnectionMode.Loose}

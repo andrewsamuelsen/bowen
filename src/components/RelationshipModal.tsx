@@ -47,6 +47,7 @@ export function RelationshipModal({
 }: RelationshipModalProps) {
   
   const is3rdParty = sourceId !== 'me' && targetId !== 'me';
+  const otherLabel = sourceId === 'me' ? targetLabel : (targetId === 'me' ? sourceLabel : targetLabel);
 
   const [selectedTags, setSelectedTags] = useState<{
     general: string[];
@@ -187,7 +188,7 @@ export function RelationshipModal({
       setLoadingAi(prev => ({ ...prev, [category]: true }));
       try {
         const question = await generateTherapeuticQuestion(
-          `${sourceLabel} and ${targetLabel}`,
+          is3rdParty ? `${sourceLabel} and ${targetLabel}` : otherLabel,
           category === 'after' && is3rdParty ? 'Impact/Role' : category,
           selectedTags[category],
           [],
@@ -215,7 +216,7 @@ export function RelationshipModal({
     setLoadingAi(prev => ({ ...prev, [category]: true }));
     try {
       const question = await generateTherapeuticQuestion(
-        `${sourceLabel} and ${targetLabel}`,
+        is3rdParty ? `${sourceLabel} and ${targetLabel}` : otherLabel,
         category === 'after' && is3rdParty ? 'Impact/Role' : category,
         selectedTags[category],
         newHistory,
@@ -405,7 +406,7 @@ export function RelationshipModal({
           <div className="flex justify-between items-start">
             <div>
               <h2 className="text-2xl font-bold text-stone-800">{is3rdParty ? 'Observing Relationship' : 'Relationship Profile'}</h2>
-              <p className="text-stone-500 text-sm">{is3rdParty ? `Analyzing the dynamic between ${sourceLabel} and ${targetLabel}` : `Characterize your relationship with ${targetLabel}`}</p>
+              <p className="text-stone-500 text-sm">{is3rdParty ? `Analyzing the dynamic between ${sourceLabel} and ${targetLabel}` : `Characterize your relationship with ${otherLabel}`}</p>
             </div>
             <button onClick={onClose} className="p-2 rounded-full hover:bg-stone-100 text-stone-400 hover:text-stone-600 transition-colors cursor-pointer"><X size={24} /></button>
           </div>
