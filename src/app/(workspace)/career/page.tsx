@@ -4,7 +4,7 @@ import { TrendingUp } from "lucide-react";
 
 export default function CareerPage() {
   return (
-    <div className="h-full flex flex-col items-center justify-center p-6 text-center text-stone-900 bg-slate-50">
+    <div className="h-full flex flex-col items-center justify-center p-6 text-center text-stone-900 bg-[#FFFEFC]">
       <div className="p-4 bg-white rounded-full shadow-sm mb-4 text-stone-300">
         <TrendingUp size={48} />
       </div>
