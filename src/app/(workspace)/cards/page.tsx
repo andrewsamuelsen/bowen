@@ -217,6 +217,7 @@ export default function CardsPage() {
   const [filter, setFilter] = useState("All");
   const [sessions, setSessions] = useState<CardSession[]>([]);
   const [graphContext, setGraphContext] = useState<any>(null);
+  const [chatContext, setChatContext] = useState<{ clinicalSummary: string, formattedHistory: string } | null>(null);
   const [isDataLoaded, setIsDataLoaded] = useState(false);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -229,8 +230,9 @@ export default function CardsPage() {
   useEffect(() => {
     Promise.all([
       fetch('/api/graph').then(r => r.ok ? r.json() : null),
-      fetch('/api/cards').then(r => r.ok ? r.json() : null)
-    ]).then(([graphData, cardsData]) => {
+      fetch('/api/cards').then(r => r.ok ? r.json() : null),
+      fetch('/api/chat/history').then(r => r.ok ? r.json() : null)
+    ]).then(([graphData, cardsData, chatData]) => {
       if (graphData) {
         setGraphContext({
           people: graphData.nodes?.map((n: any) => ({ id: n.id, label: n.data.label, type: n.data.type, responses: n.data.responses })) || [],
@@ -239,6 +241,19 @@ export default function CardsPage() {
       }
       if (cardsData?.sessions) {
         setSessions(cardsData.sessions);
+      }
+      if (chatData) {
+        let unsummarizedHistory = "";
+        if (Array.isArray(chatData.messages)) {
+          unsummarizedHistory = chatData.messages
+            .filter((m: any) => !m.summarized)
+            .map((m: any) => `${m.role.toUpperCase()}: ${m.text}`)
+            .join('\n\n');
+        }
+        setChatContext({
+          clinicalSummary: chatData.clinicalSummary || "",
+          formattedHistory: unsummarizedHistory
+        });
       }
       setIsDataLoaded(true);
     }).catch(console.error);
@@ -293,6 +308,13 @@ export default function CardsPage() {
         
         USER GRAPH CONTEXT:
         ${formatGraphForLLM(graphContext)}
+
+        ${chatContext?.clinicalSummary ? `CLINICAL SUMMARY OF HISTORY:\n${chatContext.clinicalSummary}\n\n` : ""}
+        ${chatContext?.formattedHistory ? `RECENT CHAT CONTEXT (TODAY):\n${chatContext.formattedHistory}\n\n` : ""}
+
+        INSTRUCTIONS:
+        - Incorporate the clinical summary and recent chat history into your analysis if relevant.
+        - Keep your responses to a few paragraphs unless specifically necessary.
       `;
 
       // Pass previous history for context
@@ -363,6 +385,13 @@ export default function CardsPage() {
         
         USER GRAPH CONTEXT:
         ${formatGraphForLLM(graphContext)}
+
+        ${chatContext?.clinicalSummary ? `CLINICAL SUMMARY OF HISTORY:\n${chatContext.clinicalSummary}\n\n` : ""}
+        ${chatContext?.formattedHistory ? `RECENT CHAT CONTEXT (TODAY):\n${chatContext.formattedHistory}\n\n` : ""}
+
+        INSTRUCTIONS:
+        - Incorporate the clinical summary and recent chat history into your analysis if relevant.
+        - Keep your responses to a few paragraphs unless specifically necessary.
       `;
 
       const historyForApi: GeminiMessage[] = newSession.messages.filter(m => m.id !== modelMsgId).map(m => ({

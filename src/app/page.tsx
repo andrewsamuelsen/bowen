@@ -9,7 +9,7 @@ export default function Home() {
           <span className="text-5xl">🧠</span>
         </div>
         <h1 className="text-5xl font-extrabold text-stone-900 tracking-tight">
-          Therapy <span className="text-stone-800">Graph</span>
+          <span className="text-stone-800">Bowen</span>
         </h1>
         <p className="text-xl text-stone-600 leading-relaxed">
           Visualize your relationships, identify generational patterns, and synthesize insights with AI. 
@@ -20,7 +20,7 @@ export default function Home() {
           <SignedOut>
             <SignInButton mode="modal" forceRedirectUrl="/relationships">
               <button className="px-8 py-4 bg-stone-800 text-white rounded-2xl font-bold text-lg hover:bg-stone-900 transition-all shadow-lg shadow-stone-300 transform active:scale-95">
-                Start Your Journey
+                Begin
               </button>
             </SignInButton>
           </SignedOut>

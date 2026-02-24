@@ -1,6 +1,7 @@
 export interface ChatMessage {
   role: 'user' | 'model';
   text: string;
+  summarized?: boolean;
 }
 
 export type AnalysisFramework = 'attachment' | 'ifs' | 'big5' | 'family_systems' | 'transactional' | 'mbti';
@@ -109,22 +110,28 @@ export async function streamChat(
 }
 
 export async function generateAnalysis(
-  graphData: string,
+  graph: { people: any[], relationships: any[], cardSessions?: any[] },
   framework: AnalysisFramework,
-  chatHistory: string = ""
+  chatHistory: string = "",
+  clinicalSummary: string = ""
 ): Promise<string> {
   const selectedFramework = FRAMEWORKS[framework];
+  const formattedGraph = formatGraphForLLM(graph);
+  
   const prompt = `
     ${selectedFramework.systemPrompt}
 
-    Here is the User's Relationship Graph Data (JSON):
-    ${graphData}
+    Here is the User's Relationship Context:
+    ${formattedGraph}
+
+    ${clinicalSummary ? `
+    Here is a Clinical Summary of the User's overall chat interactions/history:
+    ${clinicalSummary}
+    ` : ""}
 
     ${chatHistory ? `
-    Here is the User's Recent General Therapy Chat History:
+    Here is the User's recent, unsummarized chat interactions/history:
     ${chatHistory}
-    
-    INSTRUCTION: Please incorporate insights from the chat history if relevant, as it contains the user's direct reflections.
     ` : ""}
 
     Task:
@@ -180,10 +187,10 @@ export async function generateTherapeuticQuestion(
         You are an empathetic, insightful therapist helping a user explore THEIR OWN ROLE in a relationship they are observing between two other people ("${relationship}").
         Context:
         - Category: "${category}"
-        - Selected Tags: ${tags.join(', ')}
+        - Selected Tags (Describing the User's role or experience, NOT how the other people act towards the user): ${tags.join(', ')}
         - Progress: Question ${questionIndex} of ${totalQuestions}.
         Strategy:
-        1. **Question 1 (The Primary Impact):** Focus on the most intense tag. Ask for a specific recent interaction.
+        1. **Question 1 (The Primary Impact):** Focus on the most intense tag. Ask for a specific recent interaction where the user felt this way or played this role.
         2. **Question 2 (The Role Definition):** How did it feel? Was it a choice or reflex?
         3. **Question 3 (The Broader Cost):** How does this affect your energy outside of interactions?
         4. **Question 4 (System Patterns):** Who pulls you into this role more?
@@ -254,6 +261,51 @@ export async function generateTherapeuticQuestion(
   return fullText || `You mentioned ${tags.join(', ')}. How does this manifest?`;
 }
 
+export async function summarizeChat(
+  currentSummary: string, // Kept for backwards compatibility but not used in prompt
+  newMessages: ChatMessage[]
+): Promise<string> {
+  const prompt = `
+    You are a clinical supervisor writing a session note for a patient's ongoing psychological profile.
+    
+    New Interaction Transcript:
+    ${newMessages.map(m => `${m.role.toUpperCase()}: ${m.text}`).join('\n')}
+    
+    Task:
+    - Write a brief, dense clinical note (1-2 paragraphs) summarizing ONLY the insights from this specific transcript.
+    - Focus on new psychological patterns, relationship dynamics, conflicts, and growth.
+    - DO NOT rewrite or summarize any previous history. This note will be appended to a running log.
+    - Discard conversational filler, polite exchanges, and redundant information.
+    - Maintain a professional, objective, and empathetic clinical tone.
+    - Keep any absolutely profound text from the user intact word for word.
+  `;
+
+  const response = await fetch("/api/chat", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ 
+      message: "Please write a clinical note for this recent interaction.", 
+      history: [], 
+      systemInstruction: prompt,
+      model: "gemini-3-pro-preview" 
+    }),
+  });
+
+  if (!response.ok) throw new Error(await response.text());
+  
+  const reader = response.body?.getReader();
+  const decoder = new TextDecoder();
+  let fullText = "";
+  if (reader) {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      fullText += decoder.decode(value);
+    }
+  }
+  return fullText;
+}
+
 export function formatGraphForLLM(graph: { people: any[], relationships: any[], cardSessions?: any[] }): string {
   if (!graph) return "No data provided.";
 
@@ -274,28 +326,33 @@ export function formatGraphForLLM(graph: { people: any[], relationships: any[], 
   }).join('\n');
 
   const relationshipsSection = (graph.relationships || []).map(r => {
+    const is3rdParty = r.source !== 'me' && r.target !== 'me';
     const sourceName = peopleMap.get(r.source) || "Unknown";
     const targetName = peopleMap.get(r.target) || "Unknown";
     const responses = r.responses || r.data?.responses || {};
 
-    const tags = [
-      responses["General Tags"],
-      responses["Dynamic Tags"],
-      responses["After Tags"]
-    ].filter(t => t && t.length > 0).join(', ');
+    const genTags = responses["General Tags"];
+    const dynTags = responses["Dynamic Tags"];
+    const afterTags = responses["After Tags"];
+
+    const generalStr = genTags ? (is3rdParty ? `General Observation: [${genTags}]` : `General: [${genTags}]`) : "";
+    const dynStr = dynTags ? (is3rdParty ? `Dynamic Observation: [${dynTags}]` : `Dynamic: [${dynTags}]`) : "";
+    const afterStr = afterTags ? (is3rdParty ? `User's Role/Impact from this relationship: [${afterTags}]` : `Aftermath/Feeling: [${afterTags}]`) : "";
+
+    const tags = [generalStr, dynStr, afterStr].filter(Boolean).join(' | ');
 
     const qaDetails = [
-      responses["General Explanation"] ? `[General Context]: ${responses["General Explanation"]}` : null,
-      responses["Dynamic Explanation"] ? `[Dynamic Context]: ${responses["Dynamic Explanation"]}` : null,
-      responses["Aftermath Explanation"] ? `[Aftermath Context]: ${responses["Aftermath Explanation"]}` : null
-    ].filter(Boolean).join('\n    ');
+      responses["General Explanation"] ? `[General]: ${responses["General Explanation"]}` : null,
+      responses["Dynamic Explanation"] ? `[Dynamic]: ${responses["Dynamic Explanation"]}` : null,
+      responses["Aftermath Explanation"] ? `[${is3rdParty ? "Impact" : "Aftermath"}]: ${responses["Aftermath Explanation"]}` : null
+    ].filter(Boolean).map(text => text?.trim()).join('\n    ');
 
-    const notes = responses["Notes"] ? `Notes: "${responses["Notes"]}"` : "";
+    const notes = responses["Notes"] ? `Notes: "${responses["Notes"].trim()}"` : "";
 
     if (!tags && !notes && !qaDetails) return null;
 
     let line = `- ${sourceName} & ${targetName}:`;
-    if (tags) line += ` Tags: [${tags}]`;
+    if (tags) line += ` Tags: ${tags}`;
     if (notes) line += ` ${notes}`;
     if (qaDetails) line += `\n    ${qaDetails}`;
     
@@ -308,9 +365,9 @@ export function formatGraphForLLM(graph: { people: any[], relationships: any[], 
     const cardsSection = graph.cardSessions.map(session => {
       if (!session.messages || session.messages.length === 0) return null;
       
-      const messagesStr = session.messages.map((m: any) => 
-        `[${m.role.toUpperCase()}]: ${m.text}`
-      ).join('\n    ');
+      const messagesStr = session.messages
+        .map((m: any) => `${m.role.toUpperCase()}: ${m.text.trim()}`)
+        .join('\n    ');
 
       return `- Topic/Card: ${session.cardId}\n    ${messagesStr}`;
     }).filter(Boolean).join('\n\n');

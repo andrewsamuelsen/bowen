@@ -3,13 +3,14 @@
 import { useState, useEffect, useRef, memo } from 'react';
 import { X, Send, Loader2, MessageSquare, Trash2, Check, XCircle, Calendar, Sparkles, ChevronRight, MessageCircle } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-import { streamChat, formatGraphForLLM } from '@/lib/gemini';
+import { streamChat, formatGraphForLLM, summarizeChat } from '@/lib/gemini';
 
 interface ChatMessage {
   id: string;
   role: 'user' | 'model';
   text: string;
   timestamp: number;
+  summarized?: boolean;
 }
 
 interface ChatInterfaceProps {
@@ -33,7 +34,7 @@ const ChatMessageBubble = memo(({ msg, isLast, isLoading, onDelete, deleteConfir
   if (isEmptyModel && (!isLoading || !isLast)) return null;
 
   return (
-    <div className={`group flex gap-4 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+    <div className={`group flex gap-4 ${msg.role === 'user' ? 'justify-end' : 'justify-start'} ${msg.summarized ? 'opacity-60' : ''}`}>
       {msg.role === 'model' && (
         <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-stone-800 shrink-0 mt-1 shadow-sm">
           {isEmptyModel ? <Loader2 size={14} className="animate-spin" /> : <MessageSquare size={14} />}
@@ -157,6 +158,7 @@ const ChatInput = ({ onSend, isLoading }: { onSend: (text: string) => void, isLo
 
 export function ChatInterface({ isOpen, onClose, graphContext }: ChatInterfaceProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [clinicalSummary, setClinicalSummary] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isHistoryLoaded, setIsHistoryLoaded] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(false);
@@ -183,6 +185,9 @@ export function ChatInterface({ isOpen, onClose, graphContext }: ChatInterfacePr
           if (Array.isArray(data.messages)) {
             setMessages(data.messages);
           }
+          if (data.clinicalSummary) {
+            setClinicalSummary(data.clinicalSummary);
+          }
         }
       } catch (e) {
         console.error("Failed to fetch chat history", e);
@@ -206,7 +211,7 @@ export function ChatInterface({ isOpen, onClose, graphContext }: ChatInterfacePr
         await fetch('/api/chat/history', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ messages })
+          body: JSON.stringify({ messages, clinicalSummary })
         });
       } catch (e) {
         console.error("Failed to save chat history", e);
@@ -214,7 +219,44 @@ export function ChatInterface({ isOpen, onClose, graphContext }: ChatInterfacePr
     }, 2000);
 
     return () => { if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current); };
-  }, [messages, isHistoryLoaded]);
+  }, [messages, clinicalSummary, isHistoryLoaded]);
+
+  // Automatic summarization trigger (daily batching)
+  useEffect(() => {
+    if (!isHistoryLoaded || isLoading) return;
+
+    const today = new Date().toLocaleDateString();
+    
+    // Find messages that are not summarized AND not from today
+    const unsummarizedPreviousDays = messages.filter(m => {
+      if (m.summarized) return false;
+      const msgDate = new Date(m.timestamp).toLocaleDateString();
+      return msgDate !== today;
+    });
+
+    if (unsummarizedPreviousDays.length > 0) {
+      const triggerSummarization = async () => {
+        try {
+          // Send all unsummarized previous day messages to be appended to the summary
+          const newSummaryChunk = await summarizeChat(clinicalSummary, unsummarizedPreviousDays);
+          
+          if (isMounted.current) {
+            // Append the new chunk to the existing summary
+            setClinicalSummary(prev => prev ? prev + "\n\n" + newSummaryChunk : newSummaryChunk);
+            setMessages(prev => prev.map(m => {
+              if (unsummarizedPreviousDays.find(ts => ts.id === m.id)) {
+                return { ...m, summarized: true };
+              }
+              return m;
+            }));
+          }
+        } catch (e) {
+          console.error("Failed to summarize previous days chat", e);
+        }
+      };
+      triggerSummarization();
+    }
+  }, [messages, isHistoryLoaded, isLoading, clinicalSummary]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -239,7 +281,30 @@ export function ChatInterface({ isOpen, onClose, graphContext }: ChatInterfacePr
     setMessages(prev => [...prev, userMsg]);
     setIsLoading(true);
 
-    const apiHistory = messages.map(m => ({
+    // Send all unsummarized messages (today's messages) + the last several summarized messages to ensure conversation flow
+    const unsummarizedHistory = messages.filter(m => !m.summarized);
+    const summarizedHistory = messages.filter(m => m.summarized);
+    
+    // Take a slice of summarized messages but ensure we start with a 'user' role
+    let recentSummarized = summarizedHistory.slice(-6);
+    const firstUserIdx = recentSummarized.findIndex(m => m.role === 'user');
+    if (firstUserIdx !== -1) {
+      recentSummarized = recentSummarized.slice(firstUserIdx);
+    } else if (recentSummarized.length > 0) {
+      // If no user message found in the slice but there are messages, just clear it
+      // as the SDK requires the first message to be 'user'
+      recentSummarized = [];
+    }
+    
+    // Combine and sort by timestamp
+    const fullContextHistory = [...recentSummarized, ...unsummarizedHistory].sort((a, b) => a.timestamp - b.timestamp);
+    
+    // Final check: if the combined history starts with a model message, drop it
+    while (fullContextHistory.length > 0 && fullContextHistory[0].role === 'model') {
+      fullContextHistory.shift();
+    }
+    
+    const apiHistory = fullContextHistory.map(m => ({
       role: m.role,
       text: m.text
     }));
@@ -249,8 +314,15 @@ export function ChatInterface({ isOpen, onClose, graphContext }: ChatInterfacePr
       CORE IDENTITY: Reflector, Guide, Pattern Detector, Reality Tester.
       Tone: Objective, curious, direct, warm but not effusive.
       Goal: Help user achieve insight into their relationships and emotional patterns.
+      
+      ${clinicalSummary ? `CLINICAL SUMMARY OF HISTORY:\n${clinicalSummary}\n\n` : ""}
+      
       CONTEXT: ${formatGraphForLLM(graphContext)}
-      INSTRUCTIONS: Use provided graph data explicitly. Identify patterns. Ask probing questions.
+      
+      INSTRUCTIONS: 
+      - Use provided graph data explicitly. 
+      - Identify patterns. Ask probing questions.
+      - Keep your responses to a few paragraphs unless specifically necessary to get a point across.
     `;
 
     try {
