@@ -23,14 +23,28 @@ export default function ReportsPage() {
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    fetch('/api/graph').then(r => r.ok ? r.json() : null).then(d => {
-      if (d) {
-        setGraphData({
-          people: d.nodes?.map((n: any) => ({ id: n.id, label: n.data.label, type: n.data.type, responses: n.data.responses })) || [],
-          relationships: d.edges?.map((e: any) => ({ source: e.source, target: e.target, responses: e.data?.responses || {} })) || []
-        });
+    const fetchData = async () => {
+      try {
+        const [graphRes, cardsRes] = await Promise.all([
+          fetch('/api/graph'),
+          fetch('/api/cards')
+        ]);
+        
+        const g = await graphRes.json();
+        const c = await cardsRes.json();
+        
+        if (g) {
+          setGraphData({
+            people: g.nodes?.map((n: any) => ({ id: n.id, label: n.data.label, type: n.data.type, responses: n.data.responses })) || [],
+            relationships: g.edges?.map((e: any) => ({ source: e.source, target: e.target, responses: e.data?.responses || {} })) || [],
+            cardSessions: c.sessions || []
+          });
+        }
+      } catch (e) {
+        console.error("Failed to load graph/cards", e);
       }
-    });
+    };
+    fetchData();
   }, []);
 
   const currentGraphHash = graphData ? JSON.stringify(graphData).length.toString() + 
@@ -81,13 +95,19 @@ export default function ReportsPage() {
     setSelectedFramework(framework);
     
     let formattedHistory = "";
+    let clinicalSummary = "";
     try {
       const res = await fetch('/api/chat/history');
       if (res.ok) {
         const data = await res.json();
+        clinicalSummary = data.clinicalSummary || "";
         const history = data.messages;
         if (Array.isArray(history)) {
-          formattedHistory = history.map((m: any) => `${m.role.toUpperCase()}: ${m.text}`).join('\\n\\n');
+          // Only pass unsummarized history to save tokens
+          formattedHistory = history
+            .filter((m: any) => !m.summarized)
+            .map((m: any) => `${m.role.toUpperCase()}: ${m.text}`)
+            .join('\n\n');
         }
       }
     } catch (e) {
@@ -95,7 +115,7 @@ export default function ReportsPage() {
     }
 
     try {
-      const report = await generateAnalysis(JSON.stringify(graphData), framework, formattedHistory);
+      const report = await generateAnalysis(graphData, framework, formattedHistory, clinicalSummary);
       setAnalyses(prev => ({
         ...prev,
         [framework]: {
