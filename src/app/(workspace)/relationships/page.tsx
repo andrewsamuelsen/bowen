@@ -26,6 +26,7 @@ import { PERSON_FIELDS } from '@/constants/questions';
 import RelationshipEdge from '@/components/RelationshipEdge';
 import { Loader2, Plus } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
+import { trackEvent, ANALYTICS_EVENTS } from '@/lib/analytics';
 
 const initialNodes: Node[] = [
   {
@@ -77,6 +78,8 @@ function Flow() {
             setNodes(updatedNodes);
             setEdges(data.edges.map((e: Edge) => ({ ...e, type: 'relationshipEdge' })));
           } else if (user?.firstName) {
+            // New User / Signup Detection
+            trackEvent(ANALYTICS_EVENTS.SIGN_UP);
             setNodes(nds => nds.map(n => n.id === 'me' ? { ...n, data: { ...n.data, label: user.firstName } } : n));
           }
         }
@@ -169,6 +172,7 @@ function Flow() {
           type: 'personNode',
         };
         setNodes((nds) => nds.concat(newNode));
+        trackEvent(ANALYTICS_EVENTS.ADD_PERSON);
         
         // Onboarding Step 1 -> 2
         if (onboardingStep === 1) {
@@ -185,6 +189,7 @@ function Flow() {
           data: { responses: formData } 
         };
         setEdges((eds) => addEdge(newEdge, eds));
+        trackEvent(ANALYTICS_EVENTS.ADD_RELATIONSHIP);
         
         if (!shouldClose) {
           setEditingId(edgeId);

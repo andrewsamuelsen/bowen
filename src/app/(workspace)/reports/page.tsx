@@ -5,6 +5,7 @@ import { Sparkles, Loader2, BookOpen, Brain, GitMerge, Users, MessageSquareQuote
 import { generateAnalysis, FRAMEWORKS, type AnalysisFramework } from '@/lib/gemini';
 import ReactMarkdown from 'react-markdown';
 import { useAppStore } from '@/lib/store';
+import { trackEvent, ANALYTICS_EVENTS } from '@/lib/analytics';
 
 interface SavedAnalysis {
   report: string;
@@ -116,6 +117,10 @@ export default function ReportsPage() {
 
     try {
       const report = await generateAnalysis(graphData, framework, formattedHistory, clinicalSummary);
+      trackEvent(ANALYTICS_EVENTS.RUN_REPORT, { 
+        framework_id: framework,
+        framework_title: FRAMEWORKS[framework].title 
+      });
       setAnalyses(prev => ({
         ...prev,
         [framework]: {

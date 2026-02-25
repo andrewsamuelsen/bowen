@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, memo } from 'react';
 import { X, Send, Loader2, MessageSquare, Trash2, Check, XCircle, Calendar, Sparkles, ChevronRight, MessageCircle } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { streamChat, formatGraphForLLM, summarizeChat } from '@/lib/gemini';
+import { trackEvent, ANALYTICS_EVENTS } from '@/lib/analytics';
 
 interface ChatMessage {
   id: string;
@@ -280,6 +281,7 @@ export function ChatInterface({ isOpen, onClose, graphContext }: ChatInterfacePr
 
     setMessages(prev => [...prev, userMsg]);
     setIsLoading(true);
+    trackEvent(ANALYTICS_EVENTS.SEND_CHAT);
 
     // Send all unsummarized messages (today's messages) + the last several summarized messages to ensure conversation flow
     const unsummarizedHistory = messages.filter(m => !m.summarized);
