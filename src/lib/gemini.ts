@@ -148,7 +148,8 @@ export async function generateAnalysis(
     body: JSON.stringify({ 
       message: "Please generate the analysis based on the provided data.", 
       history: [], 
-      systemInstruction: prompt 
+      systemInstruction: prompt,
+      model: "claude-sonnet-4-6"
     }),
   });
 
@@ -229,7 +230,7 @@ export async function generateTherapeuticQuestion(
   }
 
   const promptSuffix = `
-    Guidelines: Short (1-2 sentences), standalone prompt card style, curious and warm.
+    Guidelines: Short (1-2 sentences), standalone prompt card style, curious and warm. Minimal formatting. No need to write "Question 1."
     Current History (Previous Q&A):
     ${history.map(m => `${m.role.toUpperCase()}: ${m.text}`).join('\n')}
   `;
@@ -287,7 +288,7 @@ export async function summarizeChat(
       message: "Please write a clinical note for this recent interaction.", 
       history: [], 
       systemInstruction: prompt,
-      model: "gemini-3-pro-preview" 
+      model: "claude-sonnet-4-6" 
     }),
   });
 
