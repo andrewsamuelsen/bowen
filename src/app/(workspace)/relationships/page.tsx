@@ -12,7 +12,8 @@ import ReactFlow, {
   type Connection,
   ReactFlowProvider,
   ConnectionMode,
-  ConnectionLineType
+  ConnectionLineType,
+  useReactFlow
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { useUser } from "@clerk/nextjs";
@@ -24,6 +25,7 @@ import { PersonNode } from '@/components/PersonNode';
 import { PERSON_FIELDS } from '@/constants/questions';
 import RelationshipEdge from '@/components/RelationshipEdge';
 import { Loader2, Plus } from 'lucide-react';
+import { useAppStore } from '@/lib/store';
 
 const initialNodes: Node[] = [
   {
@@ -38,6 +40,8 @@ const initialEdges: Edge[] = [];
 
 function Flow() {
   const { user, isLoaded: isUserLoaded } = useUser();
+  const { onboardingStep, setOnboardingStep } = useAppStore();
+  const { fitView } = useReactFlow();
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const [isDataLoaded, setIsDataLoaded] = useState(false);
@@ -85,6 +89,15 @@ function Flow() {
 
     fetchGraph();
   }, [isUserLoaded, user, setNodes, setEdges]);
+
+  // Automatically fit view when the first person is added
+  useEffect(() => {
+    if (nodes.length === 2 && onboardingStep === 2) {
+      setTimeout(() => {
+        fitView({ padding: 0.4, duration: 800 });
+      }, 100);
+    }
+  }, [nodes.length, onboardingStep, fitView]);
 
   useEffect(() => {
     if (!isDataLoaded) return;
@@ -142,13 +155,25 @@ function Flow() {
     } else {
       if (modalType === 'person') {
         const id = `person-${Date.now()}`;
+        
+        // If it's the first person added (only 'me' exists), position it nicely to the left
+        const isFirstPerson = nodes.length === 1;
+        const position = isFirstPerson 
+          ? { x: nodes[0].position.x - 250, y: nodes[0].position.y }
+          : { x: Math.random() * 400 + 100, y: Math.random() * 400 + 100 };
+
         const newNode: Node = {
           id,
           data: { label: formData[PERSON_FIELDS.NAME] || 'New Person', type: 'person', responses: formData },
-          position: { x: Math.random() * 400 + 100, y: Math.random() * 400 + 100 },
+          position,
           type: 'personNode',
         };
         setNodes((nds) => nds.concat(newNode));
+        
+        // Onboarding Step 1 -> 2
+        if (onboardingStep === 1) {
+          setOnboardingStep(2);
+        }
       } else if (modalType === 'connection' && pendingConnection) {
         const edgeId = `e${pendingConnection.source}-${pendingConnection.target}`;
         const newEdge: Edge = { 
@@ -166,6 +191,11 @@ function Flow() {
           setSelectedEdge(newEdge);
         }
         setPendingConnection(null);
+
+        // Onboarding Step 3 -> 4 (Only when actually finishing/closing)
+        if (onboardingStep === 3 && shouldClose) {
+          setOnboardingStep(4);
+        }
       }
     }
 
@@ -191,6 +221,7 @@ function Flow() {
     <div className="h-full w-full relative">
       <div className="absolute top-4 left-4 z-10 flex gap-2 pointer-events-none">
         <button 
+          id="onboarding-add-person"
           onClick={() => { setEditingId(null); setModalType('person'); setIsModalOpen(true); }}
           className="pointer-events-auto px-4 py-2 bg-white border border-stone-200 text-stone-800 rounded-xl hover:bg-[#FFFEFC] transition shadow-sm font-bold text-sm flex items-center gap-2 cursor-pointer"
         >
@@ -216,12 +247,17 @@ function Flow() {
           setPendingConnection(params); 
           setModalType('connection'); 
           setIsModalOpen(true); 
+
+          // Onboarding Step 2 -> 3
+          if (onboardingStep === 2) {
+            setOnboardingStep(3);
+          }
         }}
         onNodeClick={(_, node) => { setSelectedNode(node); setSelectedEdge(null); }}
         onEdgeClick={(_, edge) => { setSelectedEdge(edge); setEditingId(edge.id); setModalType('connection'); setIsModalOpen(true); }}
         onPaneClick={() => { setSelectedNode(null); setSelectedEdge(null); }}
         connectionLineType={ConnectionLineType.Straight}
-        connectionLineStyle={{ stroke: '#a8a29e', strokeWidth: 3, zIndex: -1 }}
+        connectionLineStyle={{ stroke: '#a78bfa', strokeWidth: 3, zIndex: -1 }}
         connectionMode={ConnectionMode.Loose}
         fitView
         fitViewOptions={{ padding: 0.3 }}

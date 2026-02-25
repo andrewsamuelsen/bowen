@@ -37,7 +37,7 @@ export const PersonNode = memo(({ data, selected }: NodeProps) => {
           type="source" 
           position={Position.Bottom} 
           id="main"
-          className="!w-0 !h-0 !bg-transparent !border-none !top-1/2 !left-1/2" 
+          className="!w-full !h-[2px] !bg-transparent !border-none !top-1/2 !-translate-y-1/2 !left-0 !transform-none" 
         />
       </div>
     </div>

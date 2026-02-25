@@ -6,6 +6,7 @@ import { UserButton } from "@clerk/nextjs";
 import { MessageSquare, UsersRound, Pin, FileText, BriefcaseBusiness, Menu, X, Info } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { ChatInterface } from "@/components/ChatInterface";
+import { OnboardingTour } from "@/components/OnboardingTour";
 import { useEffect, useState, useMemo } from "react";
 import { QUOTES } from "@/constants/quotes";
 
@@ -122,13 +123,13 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
 
               return (
                 <div key={link.name} className="flex items-center gap-2">
-                  <Link 
-                    href={link.href}
-                    className={`relative flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${
-                      isActive ? "bg-white text-stone-800 shadow-sm" : "text-stone-500 hover:text-stone-700 hover:bg-stone-200/50"
-                    }`}
-                  >
-                    <div className="relative">
+                                      <Link 
+                                      href={link.href}
+                                      id={link.name === "Cards" ? "onboarding-cards-nav" : undefined}
+                                      className={`relative flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+                                        isActive ? "bg-white text-stone-800 shadow-sm" : "text-stone-500 hover:text-stone-700 hover:bg-stone-200/50"
+                                      }`}
+                                    >                    <div className="relative">
                       {showCardsBadge && (
                         <span className="absolute -top-1 -left-2.25 w-2 h-2 bg-emerald-500 rounded-full border border-white animate-pulse z-10" />
                       )}
@@ -250,6 +251,7 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
         onClose={() => setIsChatOpen(false)} 
         graphContext={graphContext} 
       />
+      <OnboardingTour />
     </div>
   );
 }
