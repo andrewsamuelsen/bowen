@@ -7,6 +7,8 @@ interface AppStore {
   setHasCompletedDailyCard: (completed: boolean) => void;
   hasReports: boolean | null;
   setHasReports: (hasReports: boolean) => void;
+  onboardingStep: number;
+  setOnboardingStep: (step: number) => void;
 }
 
 export const useAppStore = create<AppStore>((set) => ({
@@ -16,4 +18,6 @@ export const useAppStore = create<AppStore>((set) => ({
   setHasCompletedDailyCard: (completed) => set({ hasCompletedDailyCard: completed }),
   hasReports: null,
   setHasReports: (hasReports) => set({ hasReports }),
+  onboardingStep: 0,
+  setOnboardingStep: (step) => set({ onboardingStep: step }),
 }));

@@ -416,7 +416,9 @@ export function RelationshipModal({
           <div className="flex justify-between text-xs font-semibold text-stone-400 uppercase tracking-wider"><span>Profile Strength</span><span>{progress}% Complete</span></div>
         </div>
         <div className="p-6 space-y-12 flex-1">
-          {renderChatSection('general', is3rdParty ? RELATIONSHIP_TAGS.general.label3rdParty : RELATIONSHIP_TAGS.general.label, RELATIONSHIP_TAGS.general.options, 'bg-blue-500', 'ring-blue-500', is3rdParty ? 'General Observation' : 'General')}
+          <div id="onboarding-general-tags">
+            {renderChatSection('general', is3rdParty ? RELATIONSHIP_TAGS.general.label3rdParty : RELATIONSHIP_TAGS.general.label, RELATIONSHIP_TAGS.general.options, 'bg-blue-500', 'ring-blue-500', is3rdParty ? 'General Observation' : 'General')}
+          </div>
           {renderChatSection('dynamic', is3rdParty ? RELATIONSHIP_TAGS.dynamic.label3rdParty : RELATIONSHIP_TAGS.dynamic.label, RELATIONSHIP_TAGS.dynamic.options, 'bg-purple-500', 'ring-purple-500', is3rdParty ? 'Dynamic Observation' : 'Dynamic')}
           {is3rdParty ? 
             renderChatSection('after', RELATIONSHIP_TAGS.impact.label, RELATIONSHIP_TAGS.impact.options, 'bg-emerald-500', 'ring-emerald-500', 'System Impact / Role') :
