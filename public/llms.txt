@@ -1,0 +1,21 @@
+# Bowen
+
+AI-Powered Relationship Synthesis and Self-Discovery Workspace.
+
+## Description
+Bowen is a visual workspace for mapping relationship dynamics, identifying generational patterns, and generating deep-dive psychological reports using clinical frameworks like Attachment Theory and Family Systems.
+
+## Core Features
+- Relationship Graph: A visual canvas for mapping connections.
+- Contextual AI: An empathetic assistant with persistent memory of your relationship dynamics.
+- Reflection Cards: Daily prompts for uncovering blind spots and shadow work.
+- Psychological Reports: Synthesis of your data through established therapeutic frameworks.
+
+## Technical Stack
+- Framework: Next.js (React)
+- Styling: Tailwind CSS
+- State Management: Zustand
+- Visualization: React Flow
+- Database: MongoDB
+- Authentication: Clerk
+- LLMs: Claude Sonnet 4.6 / Gemini 1.5 Pro

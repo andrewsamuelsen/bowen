@@ -5,6 +5,7 @@ import { Sparkles, PenTool, RefreshCw, X, Loader2, MessageSquare, Send } from "l
 import ReactMarkdown from 'react-markdown';
 import { streamChat, formatGraphForLLM, ChatMessage as GeminiMessage } from '@/lib/gemini';
 import { useAppStore } from '@/lib/store';
+import { trackEvent, ANALYTICS_EVENTS } from '@/lib/analytics';
 
 // --- TYPES ---
 type CardType = 'AI' | 'USER';
@@ -433,6 +434,13 @@ export default function CardsPage() {
     const cardDef = CARDS.find(c => c.id === newSession.cardId);
     if (cardDef?.isEvergreen && newSession.messages.length > 0) {
       setHasCompletedDailyCard(true);
+    }
+
+    if (newSession.messages.length > 0) {
+      trackEvent(ANALYTICS_EVENTS.COMPLETE_CARD, { 
+        card_id: newSession.cardId,
+        card_title: cardDef?.title 
+      });
     }
   };
 

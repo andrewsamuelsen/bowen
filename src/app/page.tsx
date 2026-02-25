@@ -1,5 +1,11 @@
 import { SignedIn, SignedOut, SignInButton, UserButton } from "@clerk/nextjs";
 import Link from "next/link";
+import { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Bowen - AI-Powered Relationship Synthesis",
+  description: "Map your relationships, identify generational patterns, and uncover blind spots with expert AI analysis.",
+};
 
 export default function Home() {
   return (
