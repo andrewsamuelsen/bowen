@@ -149,7 +149,7 @@ export async function generateAnalysis(
       message: "Please generate the analysis based on the provided data.", 
       history: [], 
       systemInstruction: prompt,
-      model: "claude-sonnet-4-6"
+      model: "gemini-3-flash-preview"
     }),
   });
 
@@ -288,7 +288,7 @@ export async function summarizeChat(
       message: "Please write a clinical note for this recent interaction.", 
       history: [], 
       systemInstruction: prompt,
-      model: "claude-sonnet-4-6" 
+      model: "gemini-3-flash-preview" 
     }),
   });
 

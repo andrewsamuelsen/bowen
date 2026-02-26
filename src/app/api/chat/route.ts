@@ -41,11 +41,11 @@ export async function POST(req: Request) {
       console.log("=== AI INPUT DEBUG (GEMINI) ===");
       console.log("SYSTEM:", systemInstruction);
       console.log("MESSAGE:", message);
-      console.log("MODEL:", "gemini-3-pro-preview");
+      console.log("MODEL:", "gemini-3-flash-preview");
       console.log("======================");
 
       const model = genAI.getGenerativeModel({
-        model: "gemini-3-pro-preview",
+        model: "gemini-3-flash-preview",
         systemInstruction: systemInstruction,
       });
 
